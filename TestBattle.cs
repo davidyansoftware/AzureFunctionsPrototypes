@@ -29,7 +29,7 @@ namespace Test.Functions
 
             string playerId = context.CallerEntityProfile.Lineage.MasterPlayerAccountId;
 
-            dynamic opponentId = null;
+            string opponentId = null;
             if (args != null && args["opponent"] != null)
             {
                 opponentId = args["opponent"];
@@ -46,55 +46,50 @@ namespace Test.Functions
             };
             PlayFabServerInstanceAPI serverApi = new PlayFabServerInstanceAPI(settings, authContext);
 
-            GetPlayerStatisticsRequest playerRequest = new GetPlayerStatisticsRequest()
-            {
-                PlayFabId = playerId,
-                StatisticNames = DATA_KEYS
-            };
-            PlayFabResult<GetPlayerStatisticsResult> playerPlayfabResult = await serverApi.GetPlayerStatisticsAsync(playerRequest);
-            GetPlayerStatisticsResult playerResult = playerPlayfabResult.Result;
-
-            int playerRating = 1000;
-            int playerPower = 0;
-            foreach(StatisticValue statistic in playerResult.Statistics)
-            {
-                if (statistic.StatisticName.Equals(RATING_KEY))
-                {
-                    playerRating = statistic.Value;
-                }
-                if (statistic.StatisticName.Equals(POWER_KEY))
-                {
-                    playerPower = statistic.Value;
-                }
-            }
-
-            GetPlayerStatisticsRequest opponentRequest = new GetPlayerStatisticsRequest() {
-                PlayFabId = opponentId,
-                StatisticNames = DATA_KEYS
-            };
-            PlayFabResult<GetPlayerStatisticsResult> opponentPlayfabResult = await serverApi.GetPlayerStatisticsAsync(opponentRequest);
-            GetPlayerStatisticsResult opponentResult = opponentPlayfabResult.Result;
-
-            int opponentRating = 1000;
-            int opponentPower = 0;
-            foreach(StatisticValue statistic in opponentResult.Statistics)
-            {
-                if (statistic.StatisticName.Equals(RATING_KEY))
-                {
-                    opponentRating = statistic.Value;
-                }
-                if (statistic.StatisticName.Equals(POWER_KEY))
-                {
-                    opponentPower = statistic.Value;
-                }
-            }
+            BattleData player = await FetchBattleData(serverApi, playerId);
+            BattleData opponent = await FetchBattleData(serverApi, opponentId);
 
             return new {
-                playerRating = playerRating,
-                playerPower = playerPower,
-                opponentRating = opponentRating,
-                opponentPower = opponentPower
+                playerRating = player.rating,
+                playerPower = player.power,
+                opponentRating = opponent.rating,
+                opponentPower = opponent.power
             };
+        }
+         
+        private static async Task<BattleData> FetchBattleData(PlayFabServerInstanceAPI serverApi, string playfabId) {
+            GetPlayerStatisticsRequest request = new GetPlayerStatisticsRequest() {
+                PlayFabId = playfabId,
+                StatisticNames = DATA_KEYS
+            };
+            PlayFabResult<GetPlayerStatisticsResult> playfabResult = await serverApi.GetPlayerStatisticsAsync(request);
+            GetPlayerStatisticsResult result = playfabResult.Result;
+
+            int rating = 1000;
+            int power = 0;
+            foreach(StatisticValue statistic in result.Statistics)
+            {
+                if (statistic.StatisticName.Equals(RATING_KEY))
+                {
+                    rating = statistic.Value;
+                }
+                if (statistic.StatisticName.Equals(POWER_KEY))
+                {
+                    power = statistic.Value;
+                }
+            }
+
+            return new BattleData(power, rating);
+        }
+    }
+
+    internal class BattleData {
+        public readonly int power;
+        public readonly int rating;
+
+        public BattleData(int power, int rating) {
+            this.power = power;
+            this.rating = rating;
         }
     }
 }
