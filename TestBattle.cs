@@ -19,17 +19,15 @@ namespace Test.Functions
 
             dynamic args = context.FunctionArgument;
 
-            dynamic name = null;
-            if (args != null && args["name"] != null)
+            dynamic opponent = null;
+            if (args != null && args["opponent"] != null)
             {
-                name = args["name"];
+                opponent = args["opponent"];
             }
 
-            log.LogDebug($"HelloWorld: {new { input = name } }");
-
             return new {
-                callerId = context.CallerEntityProfile.Lineage.MasterPlayerAccountId,
-                inputData = name
+                player = context.CallerEntityProfile.Lineage.MasterPlayerAccountId,
+                opponent = opponent
             };
         }
     }
