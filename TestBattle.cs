@@ -18,7 +18,7 @@ namespace Test.Functions
         private static readonly string POWER_KEY = "Power";
         private static readonly List<string> DATA_KEYS = new List<string> { RATING_KEY, POWER_KEY };
 
-        private static float ELO_K = 10f;
+        private static float ELO_K = 32f;
 
         [FunctionName("TestBattle")]
         public static async Task<dynamic> Run(
