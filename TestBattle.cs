@@ -18,6 +18,8 @@ namespace Test.Functions
         private static readonly string POWER_KEY = "Power";
         private static readonly List<string> DATA_KEYS = new List<string> { RATING_KEY, POWER_KEY };
 
+        private static float ELO_K = 10f;
+
         [FunctionName("TestBattle")]
         public static async Task<dynamic> Run(
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
@@ -49,14 +51,49 @@ namespace Test.Functions
             BattleData player = await FetchBattleData(serverApi, playerId);
             BattleData opponent = await FetchBattleData(serverApi, opponentId);
 
+            double chanceOfPlayerWin = ExpectationOfPlayerWin(player.power, opponent.power);
+            Random random = new Random();
+            bool playerWin = random.NextDouble() <= chanceOfPlayerWin;
+
+            int playerRatingDelta = PlayerRatingDelta(player.rating, opponent.rating, playerWin);
+            
+            int newPlayerRating = player.rating + playerRatingDelta;
+            int newOpponentRating = opponent.rating - playerRatingDelta;
+
+            UpdateRating(serverApi, playerId, newPlayerRating);
+            UpdateRating(serverApi, opponentId, newOpponentRating);
+            
             return new {
-                playerRating = player.rating,
-                playerPower = player.power,
-                opponentRating = opponent.rating,
-                opponentPower = opponent.power
+                win = playerWin,
+                winChance = chanceOfPlayerWin, // currently only using for display
+                rating = newPlayerRating
             };
         }
-         
+
+        private static int PlayerRatingDelta(int playerRating, int opponentRating, bool playerWin) {
+            double expectationOfPlayerWin = ExpectationOfPlayerWin(playerRating, opponentRating);
+            
+            int outcome = playerWin ? 1 : 0;
+            return (int)(ELO_K * ((float)outcome - expectationOfPlayerWin));
+        }
+
+        private static double ExpectationOfPlayerWin(int playerRating, int opponentRating) {
+            return 1f / (1f + Math.Pow(10f, (opponentRating - playerRating) / 400f));
+        }
+
+        private static void UpdateRating(PlayFabServerInstanceAPI serverApi, string playfabId, int newRating) {
+            UpdatePlayerStatisticsRequest request = new UpdatePlayerStatisticsRequest() {
+                PlayFabId = playfabId,
+                Statistics = new List<StatisticUpdate>() {
+                    new StatisticUpdate() {
+                        StatisticName = RATING_KEY,
+                        Value = newRating
+                    }
+                }
+            };
+            serverApi.UpdatePlayerStatisticsAsync(request);
+        }
+
         private static async Task<BattleData> FetchBattleData(PlayFabServerInstanceAPI serverApi, string playfabId) {
             GetPlayerStatisticsRequest request = new GetPlayerStatisticsRequest() {
                 PlayFabId = playfabId,
